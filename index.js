@@ -5,6 +5,7 @@ const url = require("url");
 const replacePlaceholder = (temp, product) => {
   let output = temp.replace(/{%NAME%}/g, product.product_name);
   output = output.replace(/{%IMAGE%}/g, product.image);
+  output = output.replace(/{%ID%}/g, product.id);
   output = output.replace(/{%CATEGORY%}/g, product.category);
   output = output.replace(/{%DISCOUNT%}/g, product.discount);
   output = output.replace(/{%PRICE%}/g, product.price);
@@ -12,14 +13,20 @@ const replacePlaceholder = (temp, product) => {
   return output;
 };
 const product = fs.readFileSync(`${__dirname}/demo/product.html`, "utf-8");
+
+const detailProduct = fs.readFileSync(
+  `${__dirname}/demo/detailProduct.html`,
+  "utf-8"
+);
 const products = fs.readFileSync(`${__dirname}/demo/products.html`, "utf-8");
 
 const data = fs.readFileSync(`${__dirname}/products.json`, "utf-8");
 const dataObj = JSON.parse(data);
 
 const server = http.createServer(function (req, res) {
-  const pathName = req.url;
-  switch (pathName) {
+  const { query, pathname } = url.parse(req.url, true);
+  console.log({ query, pathname });
+  switch (pathname) {
     case "/overview":
       res.end("The overview page");
       break;
@@ -27,15 +34,26 @@ const server = http.createServer(function (req, res) {
       res.end("The overview page");
       break;
     case "/product":
-      const allProducts = dataObj
-        .map((item) => replacePlaceholder(product, item))
-        .join("");
+      if (!query.id) {
+        const allProducts = dataObj
+          .map((item) => replacePlaceholder(product, item))
+          .join("");
+        const output = products.replace("{%PRODUCTS%}", allProducts);
+        res.writeHead(200, {
+          "Content-type": "text/html",
+        });
+        res.end(output);
+      } else {
+        const data = dataObj[query.id - 1];
+        const output = replacePlaceholder(detailProduct, data);
+        console.log(output);
 
-      const output = products.replace("{%PRODUCTS%}", allProducts);
-      res.writeHead(200, {
-        "Content-type": "text/html",
-      });
-      res.end(output);
+        res.writeHead(200, {
+          "Content-type": "text/html",
+          "content-encoding": "utf-8",
+        });
+        res.end(output);
+      }
       break;
     default:
       res.writeHead(404, {
